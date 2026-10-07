@@ -186,8 +186,9 @@ API 동작 설명은 설치한 openai 3.26.0과
 .venv/Scripts/python.exe -m avante_manual_rag.cli evaluate --cases evaluation/cases.cn7n-2025.json --mode local
 # 유료 실제 API 평가. 상세는 data/processed/reports/<generation>/detail.json에만 저장.
 .venv/Scripts/python.exe -m avante_manual_rag.cli evaluate --cases evaluation/cases.cn7n-2025.json --mode live
-# 각 결과에 수동 의미 판정을 기록한 로컬 보고서로 최종 지표 계산.
-.venv/Scripts/python.exe -m avante_manual_rag.cli evaluate --cases evaluation/cases.cn7n-2025.json --mode judge --report data/processed/reports/<generation>/detail.json
+# 불변 원본 보고서를 복사한 뒤, 복사본에 수동 의미 판정을 기록해.
+Copy-Item data/processed/reports/<generation>/detail.json data/evaluation/judged.json
+.venv/Scripts/python.exe -m avante_manual_rag.cli evaluate --cases evaluation/cases.cn7n-2025.json --mode judge --report data/evaluation/judged.json
 ```
 
 일반/표/사양/근거 부족 각 4개, 총 16개 사례가 있어. `required_bundles`의 **각 묶음마다 하나
@@ -195,9 +196,14 @@ API 동작 설명은 설치한 openai 3.26.0과
 이 프로젝트의 Recall@5는 성공 사례 수 / 답변 가능 사례 수야. 단순히 관련 문서 하나만
 검색됐다고 성공으로 세지 않아. 근거 부족에 무조건 유보하는 모델도 답변 가능 질문에서 실패해.
 
-상세 결과의 `judgment`는 처음에 null이야. 원문·주장·수치/단위·경고·인용 페이지를 사례의
+상세 결과의 `judgment`는 처음에 null이야. `data/evaluation/`의 복사본에만 판정을 기록하고
+불변 세대의 원본 보고서는 수정하지 마. 원문·주장·수치/단위·경고·인용 페이지를 사례의
 criteria와 대조한 다음 `{ "pass": true, "scope_errors": 0, "citation_errors": 0,
 "numeric_unit_errors": 0, "warning_errors": 0 }`와 별도 판정 메모를 기록해.
+모델은 근거 ID에 연결된 원문 발췌 ID를 선택해. 발췌 본문은 참고 데이터로 전달하고
+strict 스키마에는 짧은 ID만 넣어 중복 토큰을 줄여. 발췌 목록의 줄바꿈을 공백으로 바꾸고,
+선택된 ID를 검증한 뒤 최종 인용은 원래 저장된 원문으로 복원해.
+수치나 문장부호를 고쳐 쓴 발췌는 허용하지 않아.
 공유할 때는 원문과 발췌가 들어 있는 detail을 내보내지 말고 summary 또는 judge 출력만 사용해.
 미판정/미실행은 통과가 아니야. 검색/답변 각 90% 이상, 해당 오류 0건,
 근거 부족 전부 유보가 품질 기준이야. 이 16개는 작은 회귀 세트이며 전체 매뉴얼 정확도를

@@ -7,7 +7,8 @@ import pytest
 from openai import APIStatusError, APITimeoutError
 
 from avante_manual_rag.answering import (
-    answer, conflicting_vehicle, numeric_terms, source_quote, validate_answer,
+    answer, conflicting_vehicle, numeric_terms, quote_candidates, resolve_quotes,
+    source_quote, validate_answer,
 )
 from avante_manual_rag.chunking import make_chunks
 from avante_manual_rag.contracts import Block, Page, SearchResult
@@ -27,6 +28,27 @@ def test_line_wrap_quote_returns_source_but_paraphrase_fails():
     assert source_quote("앞 250 kPa", "앞\n250 kPa") == "앞\n250 kPa"
     assert source_quote("앞 251 kPa", "앞\n250 kPa") is None
     assert source_quote("앞 ... kPa", "앞 250 kPa") is None
+
+
+def test_allowed_quotes_preserve_punctuation_and_decimal_values():
+    source = "전장 4,710 mm, 전폭 1,825 mm, 전고 1,415 mm.\n오일 3.3~3.4 ℓ."
+    candidates = quote_candidates(source)
+    assert "전장 4,710 mm, 전폭 1,825 mm, 전고 1,415 mm." in candidates
+    assert "오일 3.3~3.4 ℓ." in candidates
+    assert all(source_quote(value, source) is not None for value in candidates)
+    assert all("\n" not in value and "\r" not in value for value in candidates)
+    assert "전장 4,710 mm, 전폭 1,825 mm. 전고 1,415 mm." not in candidates
+
+
+def test_provider_quote_references_are_bound_to_their_source():
+    results = [SearchResult(chunk("first"), 1), SearchResult(chunk("second"), 1)]
+    payload = {"status": "answered", "claims": [
+        {"text": "용량 3.3 ℓ", "evidence_id": "first", "quote_id": "Q1-1"}]}
+    resolved = resolve_quotes(payload, results)
+    assert resolved["claims"][0]["quote"] == "기어오일 용량 3.3 ℓ"
+    payload["claims"][0]["quote_id"] = "Q2-1"
+    with pytest.raises(RagError, match="another evidence"):
+        resolve_quotes(payload, results)
 
 
 def test_numbered_steps_unit_alias_and_explicit_vehicle_scope():
@@ -162,6 +184,7 @@ def test_local_evaluation_is_offline_and_shared_output_is_redacted(tmp_path):
     client = FakeClient()
     result = evaluate(config, cases_path, "local", OpenAIAdapter(config, client, len))
     assert result["live_status"] == "not_run" and not result["metrics"]["quality_gate"]
+    assert result["parsing_pass"] == result["parsing_total"] == 0
     assert client.calls == []
     assert "PRIVATE QUERY" not in str(result)
     assert "raw_text" not in str(result)

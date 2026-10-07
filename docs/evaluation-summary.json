@@ -1,0 +1,56 @@
+{
+  "report_generation": "b21296a18fa24de9b21a721dbbe4be8b",
+  "metrics": {
+    "retrieval_pass": 9,
+    "retrieval_total": 10,
+    "recall_at_5": 0.9,
+    "answer_pass": 15,
+    "answer_total": 16,
+    "answer_pass_rate": 0.9375,
+    "judgment_status": "complete",
+    "errors": {
+      "scope_errors": 0,
+      "citation_errors": 0,
+      "numeric_unit_errors": 0,
+      "warning_errors": 0
+    },
+    "all_absence_abstain": true,
+    "quality_gate": true
+  },
+  "versions": {
+    "openai": "3.26.0",
+    "pdfplumber": "0.11.10",
+    "faiss-cpu": "1.15.1"
+  },
+  "settings": {
+    "embedding": {
+      "provider": "openai",
+      "model": "text-embedding-3-small",
+      "dimensions": 1536,
+      "preprocessing": "nfc-v1"
+    },
+    "chat": "gpt-5-mini",
+    "context_tokens": 16000,
+    "output_tokens": 4000,
+    "token_encoding": "o200k_base",
+    "top_k": 5,
+    "min_score": 0.0
+  },
+  "coverage": {
+    "total_pages": 436,
+    "statuses": {
+      "needs_review": 424,
+      "blank": 1,
+      "success": 6,
+      "needs_ocr": 5
+    }
+  },
+  "parsing_pass": 10,
+  "parsing_total": 10,
+  "generation_input_tokens": 131465,
+  "generation_output_tokens": 5667,
+  "judgment_limits": [
+    "Agent source comparison; no independent human review",
+    "Small regression set; no general manual accuracy guarantee"
+  ]
+}

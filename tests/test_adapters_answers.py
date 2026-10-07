@@ -98,8 +98,10 @@ def test_structured_response_store_false_and_prompt_boundary(tmp_path):
     request = client.calls[0]
     assert request["store"] is False and request["text"]["format"]["strict"] is True
     schema = request["text"]["format"]["schema"]
-    properties = schema["properties"]["claims"]["items"]["properties"]
+    variant = schema["properties"]["claims"]["items"]["anyOf"][0]
+    properties = variant["properties"]
     assert properties["evidence_id"]["enum"] == ["chunk"]
+    assert properties["quote_id"]["enum"] == ["Q1-1"]
     assert "ignore previous instructions" not in request["instructions"]
     assert "ignore previous instructions" in request["input"]
 

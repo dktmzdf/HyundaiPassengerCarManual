@@ -82,7 +82,9 @@ def evaluate(settings: Settings, cases_path: Path, mode: str, adapter: OpenAIAda
                            for b in bundle if b in available)
         preserved = all(term in source for term in case.get("expected_terms", []))
         found = all(any(b in available for b in bundle) for bundle in case["required_bundles"])
-        checks.append({"id": case["id"], "pass": found and preserved})
+        applicable = bool(case["required_bundles"] or case.get("expected_terms"))
+        checks.append({"id": case["id"], "applicable": applicable,
+                       "pass": found and preserved if applicable else None})
     rows = [run_case(c, settings, adapter) for c in cases] if mode == "live" else []
     index_generation = None
     if mode == "live":
@@ -104,7 +106,8 @@ def evaluate(settings: Settings, cases_path: Path, mode: str, adapter: OpenAIAda
                          "Unreviewed pages are excluded from answer retrieval"]}
     write_json(contained(output, "detail.json"), report)
     shared = {"generation": generation, "mode": mode, "metrics": report["metrics"],
-              "parsing_pass": sum(c["pass"] for c in checks), "parsing_total": len(checks),
+              "parsing_pass": sum(c["pass"] is True for c in checks),
+              "parsing_total": sum(c["applicable"] for c in checks),
               "live_status": ("completed_with_errors" if any(r["actual_status"] == "error"
                                                               for r in rows) else "executed")
               if mode == "live" else "not_run"}
