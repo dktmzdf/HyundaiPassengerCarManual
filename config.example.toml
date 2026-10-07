@@ -1,0 +1,27 @@
+[paths]
+raw_root = "data/raw/hyundai/passenger"
+manifest = "data/raw/hyundai/passenger/manifest.csv"
+filename = "CN7N_2025_ko_KR.pdf"
+data_root = "data/processed"
+review_file = "data/reviews/cn7n-2025.json"
+
+[vehicle]
+project_code = "CN7N"
+model_year = 2025
+transmission = "dct"
+
+[models]
+embedding_model = "text-embedding-3-small"
+embedding_dimensions = 1536
+# Set OPENAI_CHAT_MODEL or enter an accessible Responses/Structured Outputs model here.
+chat_model = "gpt-5-mini"
+token_encoding = "o200k_base"
+
+[runtime]
+timeout_seconds = 30
+deadline_seconds = 120
+top_k = 5
+min_score = 0.0
+# These are application budgets, not claims about the chosen model's capacity.
+context_tokens = 16000
+output_tokens = 4000

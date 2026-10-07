@@ -1,0 +1,30 @@
+"""Register immutable originals using the locally maintained CSV manifest."""
+
+import csv
+from pathlib import Path
+
+from .config import Settings
+from .contracts import Document
+from .errors import RagError, require
+from .storage import contained, file_hash
+
+
+def register(settings: Settings) -> tuple[Document, Path]:
+    with settings.manifest.open(encoding="utf-8-sig", newline="") as stream:
+        rows = [r for r in csv.DictReader(stream) if r["filename"] == settings.filename]
+    require(len(rows) == 1, "Manifest must contain exactly one matching document")
+    row = rows[0]
+    require(row["project_code"] == settings.profile.project_code, "Wrong document vehicle")
+    require(int(row["model_year"]) == settings.profile.model_year, "Wrong document year")
+    path = contained(settings.raw_root, row["filename"])
+    if not path.is_file():
+        raise RagError("registration_error", "Original manual is missing")
+    digest = file_hash(path)
+    require(digest == row["sha256"], "Original manual hash mismatch")
+    require(path.stat().st_size == int(row["size_bytes"]), "Original size mismatch")
+    document = Document(
+        digest, row["filename"], f'{row["model"]} {row["model_year"]}',
+        row["project_code"], int(row["model_year"]), row["language"],
+        path.stat().st_size, row["source_url"], "unverified",
+    )
+    return document, path

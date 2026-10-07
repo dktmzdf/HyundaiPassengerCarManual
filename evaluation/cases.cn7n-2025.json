@@ -1,0 +1,24 @@
+{
+  "version": "cn7n-2025-v1",
+  "document_id": "87bbeec00684414edc31658bd0e104d714b35dab8fa8a46f68c35715a740bb0a",
+  "profile": {"project_code": "CN7N", "model_year": 2025, "transmission": "dct"},
+  "review_status": "source_checked",
+  "cases": [
+    {"id": "general-1", "category": "general", "question": "내 차의 전장과 전폭은 몇 mm야?", "expected_status": "answered", "required_bundles": [["dimensions"]], "pdf_pages": [13], "expected_terms": ["4,710 mm", "1,825 mm"], "criteria": "전장과 전폭 및 mm 대응, PDF 13/인쇄 1-7 인용"},
+    {"id": "general-2", "category": "general", "question": "연료탱크 용량과 권장 휘발유가 뭐야?", "expected_status": "answered", "required_bundles": [["fuel"]], "pdf_pages": [16], "expected_terms": ["47 ℓ", "RON 95"], "criteria": "47 ℓ, 고급 무연휘발유 권장과 일반유 사용 시 조건 보존"},
+    {"id": "general-3", "category": "general", "question": "DCT에서 D로 출발하는 순서를 알려줘.", "expected_status": "answered", "required_bundles": [["dct-drive"]], "pdf_pages": [208], "expected_terms": ["브레이크", "완전히 멈춘"], "criteria": "P 시동, 브레이크 유지 후 D, 서서히 출발, 언덕 밀림과 정차 경고"},
+    {"id": "general-4", "category": "general", "question": "DCT에서 P에 놓으면 주차브레이크를 안 걸어도 돼?", "expected_status": "answered", "required_bundles": [["dct-park"]], "pdf_pages": [207], "expected_terms": ["파킹 브레", "정지한 상태"], "criteria": "P에서도 파킹브레이크 필수, 정지 후 변속 경고 보존"},
+    {"id": "table-1", "category": "table", "question": "160 km/h 미만 일반 주행 때 앞뒤 타이어 추천 공기압은?", "expected_status": "answered", "required_bundles": [["tires"]], "pdf_pages": [13], "expected_terms": ["250 kPa(36 psi)", "235 kPa(34 psi)"], "criteria": "앞뒤 공기압 및 단위 대응, 속도 조건 및 원문 각주 보존"},
+    {"id": "table-2", "category": "table", "question": "DCT 기어오일의 용량과 추천 사양은?", "expected_status": "answered", "required_bundles": [["dct-gear-oil"], ["oil-warning"]], "pdf_pages": [16], "expected_terms": ["3.3~3.4 ℓ", "GS WDCTF HD G"], "criteria": "제어오일과 혼동 없음, 용량 참고 및 게이지 확인 경고"},
+    {"id": "table-3", "category": "table", "question": "DCT 제어오일의 용량과 추천 사양은?", "expected_status": "answered", "required_bundles": [["dct-control-oil"], ["oil-warning"]], "pdf_pages": [16], "expected_terms": ["2.45~2.5 ℓ", "GS WDCTF HD H"], "criteria": "기어오일과 혼동 없음, 용량 참고 및 게이지 확인 경고"},
+    {"id": "table-4", "category": "table", "question": "트랙 주행 공기압은 얼마이고 어떤 조건이 붙어?", "expected_status": "answered", "required_bundles": [["tires"]], "pdf_pages": [13], "expected_terms": ["255 kPa(37 psi)", "열간조건", "최대 2명"], "criteria": "앞뒤 255 kPa(37 psi), 열간, 최대 2명 무수하물, 일반 도로 복귀 시 조정"},
+    {"id": "scope-1", "category": "scope", "question": "내 2025 DCT 차량의 수동 변속 모드에서는 몇 속까지 올릴 수 있어?", "expected_status": "answered", "required_bundles": [["dct-manual-mode"]], "pdf_pages": [208], "expected_terms": ["8속"], "criteria": "DCT 수동 모드를 수동변속기 차량과 혼동하지 않고 8속, 정차 경고 유지"},
+    {"id": "scope-2", "category": "scope", "question": "2025 DCT에서 가속페달을 안 밟아도 D나 R에서 차가 움직여?", "expected_status": "answered", "required_bundles": [["dct-operation"]], "pdf_pages": [205], "expected_terms": ["브레이크만 풀면", "반드시 브레이크"], "criteria": "D/R 크리프와 정차 시 브레이크 경고, 수동모드 조작 예외 유지"},
+    {"id": "scope-3", "category": "scope", "question": "내 차는 2024년식 아반떼 N 수동이야. 변속기 오일 용량 알려줘.", "expected_status": "needs_clarification", "required_bundles": [], "pdf_pages": [], "expected_terms": [], "criteria": "고정 프로필과 다른 연식/변속기. DCT 수치를 답으로 제공하지 않음"},
+    {"id": "scope-4", "category": "scope", "question": "2025 아반떼 하이브리드에 이 DCT 기어오일 용량을 적용해도 돼?", "expected_status": "needs_clarification", "required_bundles": [], "pdf_pages": [], "expected_terms": [], "criteria": "CN7N과 다른 파워트레인 적용 금지 및 사양 확인"},
+    {"id": "absence-1", "category": "absence", "question": "내 차량의 현재 엔진오일 잔량을 원격으로 읽어줘.", "expected_status": "insufficient_evidence", "required_bundles": [], "pdf_pages": [], "expected_terms": [], "criteria": "실시간 차량 데이터가 없으므로 수치 추측 금지"},
+    {"id": "absence-2", "category": "absence", "question": "내일 서울의 휘발유 최저 가격은 얼마야?", "expected_status": "insufficient_evidence", "required_bundles": [], "pdf_pages": [], "expected_terms": [], "criteria": "매뉴얼에 없는 미래 가격을 생성하지 않음"},
+    {"id": "absence-3", "category": "absence", "question": "내 차량의 보험 계약 만료일을 알려줘.", "expected_status": "insufficient_evidence", "required_bundles": [], "pdf_pages": [], "expected_terms": [], "criteria": "개인 계약 정보를 추측하지 않음"},
+    {"id": "absence-4", "category": "absence", "question": "내 차의 현재 타이어 마모 깊이는 몇 mm야?", "expected_status": "insufficient_evidence", "required_bundles": [], "pdf_pages": [], "expected_terms": [], "criteria": "측정 없는 실시간 수치를 매뉴얼 규격으로 대체하지 않음"}
+  ]
+}

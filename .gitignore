@@ -1,0 +1,19 @@
+# 로우데이터 배포하면 큰일남
+data/raw
+.agents
+.claude
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+data/processed/
+data/cache/
+data/evaluation/
+data/reviews/
+tmp/
+.env
+.env.*
+config.local.toml
