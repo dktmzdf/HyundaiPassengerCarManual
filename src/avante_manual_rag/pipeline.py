@@ -21,12 +21,17 @@ def ingest(settings: Settings, selected: set[int] | None = None) -> dict:
     반환 사전에는 세대 ID, 문서 ID, 처리 ID와 처리 현황이 들어 있다.
     """
     document, path = register(settings)
-    review = (read_json(settings.review_file)
-              if settings.review_file and settings.review_file.is_file() else None)
+    review = (
+        read_json(settings.review_file)
+        if settings.review_file and settings.review_file.is_file()
+        else None
+    )
+    # 페이지를 가져옴
     pages, processing = parse_manual(path, document, selected, review)
     store = GenerationStore(settings.data_root)
     generation, directory = store.begin("parsed")
     write_json(contained(directory, "document.json"), to_dict(document))
+    # 페이지 저장
     write_json(contained(directory, "pages.json"), [to_dict(p) for p in pages])
     summary = {"processing_id": processing, "coverage": coverage(pages)}
     write_json(contained(directory, "summary.json"), summary)
@@ -45,8 +50,9 @@ def index(settings: Settings, adapter: OpenAIAdapter) -> dict:
     pages = [page_from_dict(p) for p in read_json(contained(directory, "pages.json"))]
     summary = read_json(contained(directory, "summary.json"))
     chunks = make_chunks(document, pages, settings.profile, summary["processing_id"])
-    generation = create_index(settings, chunks, summary["processing_id"],
-                              summary["coverage"], adapter)
+    generation = create_index(
+        settings, chunks, summary["processing_id"], summary["coverage"], adapter
+    )
     return {"generation": generation, "chunks": len(chunks), "usage": adapter.usage}
 
 
