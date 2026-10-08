@@ -42,6 +42,11 @@ MESSAGES = {
 
 
 def numeric_terms(value: str) -> set[str]:
+    """주장과 발췌를 대조할 숫자·지원 단위의 집합을 추출한다.
+
+    줄 앞의 순서 번호와 일부 리터 표기를 정규화한다. 숫자가 어떤 대상·조건에
+    속하는지는 보존하지 않으므로 표의 앞뒤 값 뒤바뀜이나 의미 일치를 보장하지 않는다.
+    """
     value = re.sub(r"(?m)^\s*\d+[.)]\s+", "", value)
     value = value.replace("ℓ", "L").replace("리터", "L")
     pattern = r"\d+(?:[,.]\d+)*(?:\s*(?:km/h|kPa|psi|mm|kg|mL|L|ℓ|%|℃|°C))?"
@@ -49,7 +54,11 @@ def numeric_terms(value: str) -> set[str]:
 
 
 def conflicting_vehicle(question: str) -> bool:
-    """Recognize only explicit profile conflicts; do not infer unspecified trim options."""
+    """질문의 연도·차종·수동 관련 표현을 규칙으로 검사해 차량 충돌 여부를 반환한다.
+
+    현재 기준은 2025 CN7N DCT다. 표현의 문맥을 해석하지 않아 보증 연도나
+    '수동 모드' 표현도 충돌로 오인할 수 있으며 실제 사양을 확정하는 함수는 아니다.
+    """
     years = re.findall(r"(20\d{2})\s*년(?:식)?", question)
     if any(int(year) != 2025 for year in years):
         return True
@@ -60,6 +69,11 @@ def conflicting_vehicle(question: str) -> bool:
 
 
 def response_schema(results: list[SearchResult]) -> dict:
+    """전달할 근거별로 허용 근거 ID·발췌 ID를 묶은 strict 응답 스키마를 만든다.
+
+    results는 선택된 검색 결과이며 비어 있지 않아야 한다. 반환 형식과 참조를
+    제한하지만 모델이 작성한 주장의 의미까지 검증하지는 않는다.
+    """
     schema = deepcopy(SCHEMA)
     variants = []
     for index, result in enumerate(results):
@@ -75,12 +89,20 @@ def response_schema(results: list[SearchResult]) -> dict:
 
 
 def quote_catalog(index: int, result: SearchResult) -> dict[str, str]:
+    """검색 결과 순번과 후보 순번으로 발췌 ID를 만들고 정규화된 발췌에 연결한다.
+
+    ID는 이번 모델 요청 안에서만 유효하며 선택 결과나 순서가 바뀌면 다시 생성한다.
+    """
     return {f"Q{index + 1}-{number + 1}": value
             for number, value in enumerate(quote_candidates(result.chunk.text))}
 
 
 def resolve_quotes(payload: dict, results: list[SearchResult]) -> dict:
-    """Convert provider quote references into validated common-contract source excerpts."""
+    """API 응답의 quote_id를 공통 답변 계약의 quote 본문으로 변환한다.
+
+    호출할 때 사용한 것과 같은 순서의 results가 필요하다. 없는 ID나 다른 근거에
+    속한 발췌는 citation_validation_error로 거부하며 원문 복원은 후속 검사에서 수행한다.
+    """
     catalog = {key: (result.chunk.chunk_id, value) for index, result in enumerate(results)
                for key, value in quote_catalog(index, result).items()}
     claims = payload.get("claims")
@@ -99,7 +121,12 @@ def resolve_quotes(payload: dict, results: list[SearchResult]) -> dict:
 
 
 def quote_candidates(source: str) -> list[str]:
-    """Bound source spans and flatten whitespace for strict schema enum string literals."""
+    """청크에서 연속된 문장·문장 쌍을 골라 공백을 정규화한 발췌 목록을 만든다.
+
+    현재는 1200자 이하 후보를 최대 32개 반환한다. 문장 후보가 전혀 없을 때만
+    줄 묶음을 사용하므로 긴 표나 뒤쪽 경고가 빠질 수 있다. 후보가 없으면 RagError를 낸다.
+    숫자·문장부호를 다시 쓰지 않으며 전체 원문은 저장된 청크에 남아 있다.
+    """
     spans = [match.span() for match in re.finditer(
         r".+?(?:[.!?](?=\s|$)|$)", source, flags=re.DOTALL) if match.group().strip()]
     candidates = []
@@ -124,7 +151,11 @@ def quote_candidates(source: str) -> list[str]:
 
 
 def source_quote(quote: str, source: str) -> str | None:
-    """Allow PDF line-wrap whitespace changes, then return the actual source span."""
+    """발췌를 원문에서 찾고 실제 저장된 연속 구간을 반환한다. 찾지 못하면 None이다.
+
+    호출자는 비어 있지 않은 발췌를 전달해야 한다. 공백·줄바꿈 차이만 허용하고
+    숫자나 문장부호 변경은 허용하지 않아 최종 인용에 원래 줄바꿈을 복원할 수 있다.
+    """
     if quote in source:
         return quote
     positions = [i for i, char in enumerate(source) if not char.isspace()]
@@ -137,6 +168,12 @@ def source_quote(quote: str, source: str) -> str | None:
 
 
 def validate_answer(payload: dict, results: list[SearchResult], coverage: dict) -> Answer:
+    """공통 답변의 상태·주장·참조·발췌를 검사하고 저장된 메타데이터로 인용을 만든다.
+
+    조건과 경고는 모델이 작성한 값 대신 검색 청크에서 가져온다. 잘못된 참조·발췌·
+    숫자/단위 포함 관계는 citation_validation_error를 낸다. 표의 값 대응과 주장 전체의
+    의미적 뒷받침까지 자동 보장하는 검사는 아니므로 별도 평가가 필요하다.
+    """
     if set(payload) != {"status", "claims"} or payload["status"] not in MESSAGES:
         raise RagError("citation_validation_error", "Invalid structured answer")
     status, claims = payload["status"], payload["claims"]
@@ -169,6 +206,13 @@ def validate_answer(payload: dict, results: list[SearchResult], coverage: dict) 
 
 def answer(question: str, results: list[SearchResult], coverage: dict,
            adapter: OpenAIAdapter) -> Answer:
+    """검색 결과에서 입력 예산에 맞는 근거를 골라 생성하고 검증된 Answer를 반환한다.
+
+    생성 모델 설정이 필요하다. 차량 충돌이나 빈 검색 결과는 모델 호출 없이 분기한다.
+    선택한 청크 전체는 유지하지만 예산을 넘는 후보는 건너뛰며 현재 개별 제외 사유는
+    기록하지 않는다. 아무 근거도 들어가지 않거나 응답이 불완전하면 generation_error다.
+    실제 API 호출·usage 기록은 adapter가 맡고 원본 및 저장 청크는 수정하지 않는다.
+    """
     require(bool(question.strip()), "Empty question")
     settings = adapter.settings
     require(bool(settings.chat_model), "OPENAI_CHAT_MODEL or models.chat_model is missing")
@@ -220,6 +264,11 @@ def answer(question: str, results: list[SearchResult], coverage: dict,
 
 
 def context_payload(question: str, results: list[SearchResult]) -> str:
+    """질문·검색 근거·조건·경고·발췌 목록을 모델에 보낼 JSON 문자열로 묶는다.
+
+    원문은 참고 데이터로 전달하며 실행하지 않는다. 이 문자열에는 질문과 문서 본문이
+    포함되므로 일반 진단 로그로 출력하지 않아야 한다.
+    """
     return json.dumps({"question": question, "evidence": [
         {"id": r.chunk.chunk_id, "text": r.chunk.text, "conditions": r.chunk.conditions,
          "warnings": r.chunk.warnings, "applicability": r.chunk.applicability,

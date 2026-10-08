@@ -29,6 +29,10 @@ class Settings:
     review_file: Path | None = None
 
     def __post_init__(self) -> None:
+        """현재 지원 차량·임베딩 모델·경로 분리·실행 한도를 검증한다.
+
+        생성 모델은 빈 문자열도 허용하며 실제 답변을 만들 때 누락 여부를 확인한다.
+        """
         require(self.profile == VehicleProfile("CN7N", 2025, "dct"), "Unsupported vehicle")
         require(not self.data_root.is_relative_to(self.raw_root), "Output is inside raw data")
         require(not self.raw_root.is_relative_to(self.data_root), "Output contains raw data")
@@ -44,11 +48,17 @@ class Settings:
         require(Path(self.filename).name == self.filename, "Invalid filename")
 
     def embedding_contract(self) -> dict:
+        """색인·캐시 호환성 검사에 쓰는 제공자·모델·차원·전처리 설정을 반환한다."""
         return {"provider": "openai", "model": self.embedding_model,
                 "dimensions": self.dimensions, "preprocessing": "nfc-v1"}
 
 
 def load_settings(path: Path) -> Settings:
+    """TOML과 같은 위치의 .env를 읽고 상대 경로를 설정 파일 기준으로 해석한다.
+
+    환경변수의 생성 모델 설정이 우선하며 토크나이저 캐시 경로도 설정한다.
+    파일 접근·TOML 해석·필수 키 누락 및 Settings 검증 오류는 호출자에게 전달한다.
+    """
     load_local_env(path.resolve().parent / ".env")
     with path.open("rb") as stream:
         data = tomllib.load(stream)
@@ -72,7 +82,11 @@ def load_settings(path: Path) -> Settings:
 
 
 def load_local_env(path: Path) -> None:
-    """Read only two known keys; no interpolation, execution, or secret logging."""
+    """로컬 파일에서 API 키와 생성 모델만 읽고 기존 환경변수 값은 유지한다.
+
+    파일이 없으면 건너뛰며 변수 치환·코드 실행·값 출력은 하지 않는다.
+    따옴표 한 쌍만 제거하므로 인라인 주석은 값에 포함될 수 있다.
+    """
     if not path.is_file():
         return
     for line in path.read_text(encoding="utf-8-sig").splitlines():

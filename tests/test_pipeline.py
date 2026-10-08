@@ -18,6 +18,10 @@ from helpers import settings
 
 
 def source(tmp_path):
+    """두 페이지짜리 합성 PDF와 해시 manifest를 만들고 테스트 설정 및 원본 경로를 반환한다.
+
+    첫 페이지는 두 열과 인쇄 번호, 둘째 페이지는 빈 페이지로 파서 상태를 검사한다.
+    """
     config = settings(tmp_path)
     config.raw_root.mkdir()
     path = config.raw_root / config.filename
@@ -39,6 +43,7 @@ def source(tmp_path):
 
 
 def test_registration_and_page_status(tmp_path):
+    """재등록 동일성·추출 상태·미검토 제외·원본 보존과 파일 누락/해시 변조 거부를 검사한다."""
     config, path = source(tmp_path)
     before = file_hash(path)
     document, _ = register(config)
@@ -61,6 +66,7 @@ def test_registration_and_page_status(tmp_path):
 
 
 def test_linked_warning_cross_page_and_scope(tmp_path):
+    """다른 페이지의 경고 연결과 결정적 청크를 검사하고 현재 불호환 링크 오류를 확인한다."""
     config, path = source(tmp_path)
     document, _ = register(config)
     block = Block("dct", 1, [0, 0, 100, 100], "table", "DCT 3.3 L", "Oil",
@@ -78,6 +84,7 @@ def test_linked_warning_cross_page_and_scope(tmp_path):
 
 
 def test_contracts_reject_bad_enums_shapes_and_paths(tmp_path):
+    """답변·색인·페이지 enum/자료형과 문서 파일명의 잘못된 입력을 거부하는지 확인한다."""
     for factory in [lambda: Answer("bad", "text"), lambda: Answer("answered", "", claims="bad"),
                     lambda: IndexBuild("g", "p", settings(tmp_path).profile, {}, 1),
                     lambda: Page(1, None, "unknown", ""),
@@ -87,12 +94,14 @@ def test_contracts_reject_bad_enums_shapes_and_paths(tmp_path):
 
 
 def test_missing_config_nonzero_and_no_input_logging(tmp_path, capsys):
+    """없는 설정 파일의 CLI 종료 코드가 비정상이고 오류 출력에 질문 원문이 없는지 검사한다."""
     assert main(["--config", str(tmp_path / "missing.toml"), "ask", "PRIVATE QUESTION"]) != 0
     output = capsys.readouterr()
     assert "PRIVATE QUESTION" not in output.err
 
 
 def test_metrics_abstention_and_missing_judgment_fail():
+    """답변 가능한 질문의 무조건 유보와 판정 누락이 품질 통과로 계산되지 않는지 확인한다."""
     judgment = {"pass": True, "scope_errors": 0, "citation_errors": 0,
                 "numeric_unit_errors": 0, "warning_errors": 0}
     rows = [{"expected_status": "answered", "actual_status": "insufficient_evidence",

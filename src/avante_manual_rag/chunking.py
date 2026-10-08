@@ -8,6 +8,12 @@ CHUNKER_VERSION = "reviewed-linked-v2"
 
 def make_chunks(document: Document, pages: list[Page], profile: VehicleProfile,
                 processing_id: str) -> list[Chunk]:
+    """검토된 공통/해당 변속기 블록과 연결된 근거를 묶어 결정적 ID의 청크를 만든다.
+
+    페이지·블록 참조·조건·경고를 함께 보존하고 같은 ID의 결과는 중복 제거한다.
+    문서 프로필 불일치·중복 블록·없는 링크 및 수동 전용/미검토 연결은 현재 전체 작업을
+    RagError로 중단한다. 인쇄 번호가 없는 페이지는 printed_pages 목록에서 빠진다.
+    """
     require((document.project_code, document.model_year) ==
             (profile.project_code, profile.model_year), "Wrong document profile")
     blocks = {b.block_id: b for p in pages for b in p.blocks}

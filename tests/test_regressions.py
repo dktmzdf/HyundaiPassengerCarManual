@@ -25,12 +25,14 @@ from test_pipeline import source
 
 
 def test_line_wrap_quote_returns_source_but_paraphrase_fails():
+    """발췌의 줄바꿈 차이는 원문으로 복원하고 숫자·말줄임표 변경은 거부하는지 확인한다."""
     assert source_quote("앞 250 kPa", "앞\n250 kPa") == "앞\n250 kPa"
     assert source_quote("앞 251 kPa", "앞\n250 kPa") is None
     assert source_quote("앞 ... kPa", "앞 250 kPa") is None
 
 
 def test_allowed_quotes_preserve_punctuation_and_decimal_values():
+    """허용 발췌가 원문 숫자·문장부호를 유지하고 strict 목록에서는 줄바꿈을 없애는지 검사한다."""
     source = "전장 4,710 mm, 전폭 1,825 mm, 전고 1,415 mm.\n오일 3.3~3.4 ℓ."
     candidates = quote_candidates(source)
     assert "전장 4,710 mm, 전폭 1,825 mm, 전고 1,415 mm." in candidates
@@ -41,6 +43,7 @@ def test_allowed_quotes_preserve_punctuation_and_decimal_values():
 
 
 def test_provider_quote_references_are_bound_to_their_source():
+    """발췌 ID를 본문으로 변환하되 다른 근거의 발췌 ID를 함께 쓰면 거부하는지 확인한다."""
     results = [SearchResult(chunk("first"), 1), SearchResult(chunk("second"), 1)]
     payload = {"status": "answered", "claims": [
         {"text": "용량 3.3 ℓ", "evidence_id": "first", "quote_id": "Q1-1"}]}
@@ -52,6 +55,7 @@ def test_provider_quote_references_are_bound_to_their_source():
 
 
 def test_numbered_steps_unit_alias_and_explicit_vehicle_scope():
+    """순서 번호 제외·리터 단위 정규화와 대표 차량 충돌/수동 변속 모드 사례를 검사한다."""
     assert numeric_terms("1. 브레이크를 밟아.\n2. D로 바꿔.") == set()
     assert numeric_terms("47 리터") == numeric_terms("47 ℓ") == {"47L"}
     assert conflicting_vehicle("내 차는 2024년식 아반떼 N 수동이야")
@@ -60,12 +64,14 @@ def test_numbered_steps_unit_alias_and_explicit_vehicle_scope():
 
 
 def test_ambiguous_footer_is_not_invented():
+    """footer에서 다른 두 인쇄 번호가 발견되면 임의 번호 대신 None을 반환하는지 확인한다."""
     page = NS(height=600, width=400,
               crop=lambda _: NS(extract_text=lambda: "1-1 2-2"))
     assert printed_number(page) is None
 
 
 def test_review_separates_columns_and_unknown_scope(tmp_path):
+    """검토 영역으로 두 열의 읽기 순서를 분리하고 unknown 열은 청크에서 제외하는지 검사한다."""
     import pdfplumber
     config, path = source(tmp_path)
     with pdfplumber.open(path) as pdf:
@@ -82,6 +88,7 @@ def test_review_separates_columns_and_unknown_scope(tmp_path):
 
 
 def test_long_table_is_preserved_and_rejected_when_over_budget(tmp_path):
+    """긴 표의 머리글·값·경고를 자르지 않고 보존하며 임베딩 한도 초과를 알리는지 검사한다."""
     config, _ = source(tmp_path)
     document, _ = register(config)
     body = "HEADER kg\n" + "DCT 123 kg\n" * 1000 + "WARNING"
@@ -95,6 +102,7 @@ def test_long_table_is_preserved_and_rejected_when_over_budget(tmp_path):
 
 @pytest.mark.parametrize("status,code", [(401, "invalid_api_key"), (429, "insufficient_quota")])
 def test_generation_auth_quota_errors_are_not_absence(tmp_path, status, code):
+    """생성 인증/할당량 오류를 유보로 바꾸지 않고 재시도 없이 generation_error로 내는지 검사한다."""
     client = FakeClient()
     response = httpx2.Response(status, request=httpx2.Request("POST", "https://test.invalid"))
     client.response_error = APIStatusError("private", response=response, body={"code": code})
@@ -105,6 +113,7 @@ def test_generation_auth_quota_errors_are_not_absence(tmp_path, status, code):
 
 
 def test_timeout_has_single_retry_layer(tmp_path, monkeypatch):
+    """SDK timeout을 가짜 예외로 주입해 어댑터의 최대 두 번 재시도만 적용되는지 확인한다."""
     monkeypatch.setattr("avante_manual_rag.openai_adapter.time.sleep", lambda _: None)
     client = FakeClient()
     client.embedding_error = APITimeoutError(request=httpx2.Request("POST", "https://test.invalid"))
@@ -115,10 +124,12 @@ def test_timeout_has_single_retry_layer(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("status", ["needs_clarification", "conflicting_evidence"])
 def test_domain_states_are_not_provider_errors(status):
+    """확인 필요·근거 상충 상태가 빈 주장과 함께 정상 도메인 답변으로 유지되는지 검사한다."""
     assert validate_answer({"status": status, "claims": []}, [], {}).status == status
 
 
 def test_index_count_mismatch_and_failed_reindex_preserve_active(tmp_path):
+    """재색인 저장 실패 시 기존 활성 색인을 보존하고 벡터/JSON 개수 불일치를 거부하는지 검사한다."""
     config = settings(tmp_path)
     adapter = OpenAIAdapter(config, FakeClient(), len)
     first = create_index(config, [chunk()], "p", {}, adapter)
@@ -137,6 +148,7 @@ def test_index_count_mismatch_and_failed_reindex_preserve_active(tmp_path):
 
 
 def test_quality_gate_needs_every_judgment_and_zero_errors():
+    """판정이 갖춰진 사례의 통과와 경고 오류가 있는 경우의 품질 게이트 실패를 검사한다."""
     judgment = {"pass": True, "scope_errors": 0, "citation_errors": 0,
                 "numeric_unit_errors": 0, "warning_errors": 0}
     rows = [{"expected_status": "answered", "actual_status": "answered",
@@ -149,6 +161,7 @@ def test_quality_gate_needs_every_judgment_and_zero_errors():
 
 
 def test_full_synthetic_rerun_failure_and_restore(tmp_path):
+    """합성 입력의 등록·파싱·색인 재실행과 이전 세대 복귀에서 캐시·원본 보존을 검사한다."""
     from dataclasses import replace
     config, path = source(tmp_path)
     before = file_hash(path)
@@ -172,6 +185,7 @@ def test_full_synthetic_rerun_failure_and_restore(tmp_path):
 
 
 def test_local_evaluation_is_offline_and_shared_output_is_redacted(tmp_path):
+    """local 평가의 API 미호출·비적용 파싱 집계·공유 요약의 질문/본문 제외를 확인한다."""
     config, _ = source(tmp_path)
     registered = ingest(config)
     cases = {"version": "synthetic-v1", "document_id": registered["document_id"],
@@ -196,6 +210,7 @@ def test_local_evaluation_is_offline_and_shared_output_is_redacted(tmp_path):
 
 
 def test_ask_cli_states_failures_and_exit_codes(tmp_path, monkeypatch, capsys):
+    """가짜 API로 ask CLI의 확인/상충 상태와 불완전 응답 오류 및 종료 코드를 검사한다."""
     import json
     from avante_manual_rag.cli import main
     from avante_manual_rag.retrieval import create_index

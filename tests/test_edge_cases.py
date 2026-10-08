@@ -22,6 +22,7 @@ from test_pipeline import source
 
 
 def test_env_load_known_keys_no_execution(tmp_path, monkeypatch):
+    """알려진 두 설정만 .env에서 읽고 다른 이름이나 셸 표현을 실행하지 않는지 검사한다."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_CHAT_MODEL", raising=False)
     path = tmp_path / ".env"
@@ -36,6 +37,7 @@ def test_env_load_known_keys_no_execution(tmp_path, monkeypatch):
 
 
 def test_missing_key_and_model_are_errors(tmp_path, monkeypatch):
+    """필요한 API 키·생성 모델 누락이 호출 전에 설명 가능한 오류로 드러나는지 확인한다."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     adapter = OpenAIAdapter(settings(tmp_path), count=len)
     with pytest.raises(RagError, match="OPENAI_API_KEY"):
@@ -46,6 +48,7 @@ def test_missing_key_and_model_are_errors(tmp_path, monkeypatch):
 
 
 def test_ingest_requires_no_key_search_requires_no_chat_model(tmp_path, monkeypatch):
+    """등록/파싱의 키 불필요와 검색의 생성 모델 불필요를 가짜 API 및 합성 PDF로 검사한다."""
     config, _ = source(tmp_path)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("avante_manual_rag.cli.load_settings", lambda _: config)
@@ -60,6 +63,7 @@ def test_ingest_requires_no_key_search_requires_no_chat_model(tmp_path, monkeypa
 
 
 def test_manifest_wrong_year(tmp_path):
+    """manifest 연식이 설정 프로필과 다르면 원본 등록을 거부하는지 확인한다."""
     config, _ = source(tmp_path)
     original = config.manifest.read_text(encoding="utf-8")
     config.manifest.write_text(original.replace("2025", "2024"), encoding="utf-8")
@@ -68,6 +72,7 @@ def test_manifest_wrong_year(tmp_path):
 
 
 def test_korean_table_coordinates_and_deduplication(tmp_path):
+    """합성 한글 PDF에서 표 행·열·좌표를 추출하고 표와 본문 중복을 제거하는지 검사한다."""
     import pdfplumber
     pdfmetrics.registerFont(UnicodeCIDFont("HYSMyeongJo-Medium"))
     path = tmp_path / "synthetic.pdf"
@@ -92,6 +97,7 @@ def test_korean_table_coordinates_and_deduplication(tmp_path):
 
 
 def test_extraction_failure_recorded_and_review_hash_rejected(tmp_path):
+    """페이지 추출 예외가 failed 상태로 남고 다른 원본 해시의 검토 자료가 거부되는지 검사한다."""
     config, path = source(tmp_path)
     document, _ = register(config)
     with patch("avante_manual_rag.parsing.extract_page", side_effect=ValueError("bad page")):
@@ -102,6 +108,7 @@ def test_extraction_failure_recorded_and_review_hash_rejected(tmp_path):
 
 
 def test_directory_link_escape_is_rejected(tmp_path):
+    """Windows junction 또는 심볼릭 링크를 통한 데이터 경로 탈출이 차단되는지 확인한다."""
     import os
     import subprocess
     outside = tmp_path / "outside"
@@ -119,6 +126,7 @@ def test_directory_link_escape_is_rejected(tmp_path):
 
 
 def test_invalid_response_indices_fail_before_cache(tmp_path):
+    """입력 범위와 다른 임베딩 응답 index를 거부하고 잘못된 캐시를 쓰지 않는지 검사한다."""
     client = FakeClient()
     client.embeddings.create = lambda **_: NS(data=[NS(index=2, embedding=[1.] * 1536)],
                                              model="text-embedding-3-small", usage=None)

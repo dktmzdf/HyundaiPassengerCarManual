@@ -15,6 +15,7 @@ from .storage import GenerationStore
 
 
 def parser() -> argparse.ArgumentParser:
+    """설정 경로와 각 하위 명령의 인자를 정의한 파서를 만든다. 작업은 실행하지 않는다."""
     result = argparse.ArgumentParser(prog="avante-rag")
     result.add_argument("--config", type=Path, default=Path("config.example.toml"))
     commands = result.add_subparsers(dest="command", required=True)
@@ -35,6 +36,11 @@ def parser() -> argparse.ArgumentParser:
 
 
 def page_selection(value: str | None) -> set[int] | None:
+    """'1,13,16-18' 형태를 중복 없는 PDF 페이지 집합으로 바꾼다.
+
+    None은 전체 페이지를 뜻하며 잘못된 범위는 RagError, 숫자 변환 실패는 ValueError를 낸다.
+    선택한 번호가 실제 PDF 범위에 들어가는지는 파서에서 확인한다.
+    """
     if value is None:
         return None
     numbers = set()
@@ -50,6 +56,10 @@ def page_selection(value: str | None) -> set[int] | None:
 
 
 def execute(args: argparse.Namespace) -> dict:
+    """설정을 읽고 요청된 명령을 실행해 JSON으로 출력할 결과 사전을 반환한다.
+
+    외부 호출 여부는 명령과 캐시에 따라 달라지며 예외는 main에서 처리한다.
+    """
     settings = load_settings(args.config)
     adapter = OpenAIAdapter(settings)
     if args.command == "ingest":
@@ -70,6 +80,11 @@ def execute(args: argparse.Namespace) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI 결과를 stdout, 처리 가능한 오류를 stderr에 JSON으로 쓰고 종료 코드를 반환한다.
+
+    정상 결과는 0, RagError는 1, 설정·저장 관련 일부 예외는 2다.
+    argparse 오류는 SystemExit로 종료되며 그 밖의 미처리 예외는 그대로 전달된다.
+    """
     args = parser().parse_args(argv)
     try:
         output = execute(args)

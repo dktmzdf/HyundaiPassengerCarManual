@@ -14,6 +14,12 @@ from .storage import GenerationStore, contained, read_json, write_json
 
 
 def ingest(settings: Settings, selected: set[int] | None = None) -> dict:
+    """원본을 등록·파싱하고 문서/페이지/요약을 새 파싱 세대로 저장·활성화한다.
+
+    선택 범위 밖의 상태도 보존하며 검토 파일이 없으면 미검토 추출만 만든다.
+    API 키나 모델 호출은 필요하지 않고 저장 결과 검증 후 활성 포인터를 교체한다.
+    반환 사전에는 세대 ID, 문서 ID, 처리 ID와 처리 현황이 들어 있다.
+    """
     document, path = register(settings)
     review = (read_json(settings.review_file)
               if settings.review_file and settings.review_file.is_file() else None)
@@ -29,6 +35,11 @@ def ingest(settings: Settings, selected: set[int] | None = None) -> dict:
 
 
 def index(settings: Settings, adapter: OpenAIAdapter) -> dict:
+    """활성 파싱 결과에서 적용 가능한 청크를 만들고 새 FAISS 세대를 활성화한다.
+
+    임베딩 캐시에 없는 본문은 adapter를 통해 외부 API로 전송될 수 있다.
+    반환 값은 생성한 세대·청크 수·누적 usage이며 처리나 색인 실패는 호출자에게 전달한다.
+    """
     _, directory = GenerationStore(settings.data_root).active("parsed")
     document = Document(**read_json(contained(directory, "document.json")))
     pages = [page_from_dict(p) for p in read_json(contained(directory, "pages.json"))]
@@ -40,6 +51,11 @@ def index(settings: Settings, adapter: OpenAIAdapter) -> dict:
 
 
 def ask(settings: Settings, question: str, adapter: OpenAIAdapter) -> dict:
+    """질문을 검색한 뒤 근거 기반 답변을 생성하고 답변 사전과 usage를 반환한다.
+
+    현재는 검색이 먼저 실행되므로 생성 모델 설정 누락이나 차량 충돌 확인 전에
+    질문 임베딩 API가 호출될 수 있다. 검색·생성·인용 실패는 호출자에게 전달한다.
+    """
     results, stats = search(settings, question, adapter)
     result = answer(question, results, stats, adapter)
     return {"answer": to_dict(result), "usage": adapter.usage}

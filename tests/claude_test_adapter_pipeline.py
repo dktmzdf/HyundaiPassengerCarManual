@@ -13,11 +13,12 @@ from helpers import FakeClient, chunk, settings
 
 
 def no_search(*args, **kwargs):
+    """검색 호출을 가로채 AssertionError를 내서 로컬 선행 검사가 빠진 경로를 드러낸다."""
     raise AssertionError("search ran before local checks")
 
 
 def test_invalid_sdk_response_is_a_generation_error(tmp_path):
-    """grounded-manual-answers spec.md:63-65 reports an invalid response as a service failure."""
+    """SDK 응답 검증 예외가 generation_error로 변환돼야 한다는 리뷰의 요구를 재현한다."""
     request = httpx2.Request("POST", "https://test.invalid")
     client = FakeClient()
     client.response_error = APIResponseValidationError(
@@ -29,7 +30,7 @@ def test_invalid_sdk_response_is_a_generation_error(tmp_path):
 
 
 def test_ask_rejects_missing_chat_model_before_embedding(tmp_path, monkeypatch):
-    """A missing chat model must fail before the question is sent for a paid embedding."""
+    """생성 모델 누락을 유료 질문 임베딩 전에 거부해야 한다는 실행 순서 요구를 검사한다."""
     monkeypatch.setattr("avante_manual_rag.pipeline.search", no_search)
     config = settings(tmp_path, chat_model="")
     with pytest.raises(RagError) as error:
@@ -38,7 +39,7 @@ def test_ask_rejects_missing_chat_model_before_embedding(tmp_path, monkeypatch):
 
 
 def test_ask_profile_conflict_needs_no_search(tmp_path, monkeypatch):
-    """An explicit other-year question is answered locally without retrieval."""
+    """명확한 다른 차량 사양은 검색 없이 확인 요청으로 처리해야 한다는 요구를 검사한다."""
     monkeypatch.setattr("avante_manual_rag.pipeline.search", no_search)
     config = settings(tmp_path)
     adapter = OpenAIAdapter(config, FakeClient(), len)

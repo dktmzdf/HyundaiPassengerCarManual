@@ -11,12 +11,13 @@ JUDGMENT = {"pass": True, "scope_errors": 0, "citation_errors": 0,
 
 
 def row(expected: str, actual: str, passed: bool = True) -> dict:
+    """기대/실제 상태와 의미 판정 성공 여부를 지정한 합성 평가 행을 만든다."""
     return {"expected_status": expected, "actual_status": actual, "retrieval_pass": True,
             "judgment": {**JUDGMENT, "pass": passed}}
 
 
 def test_answer_rate_uses_answerable_cases_only():
-    """design.md:269 and rag-quality-evaluation spec.md:56 divide by answerable cases."""
+    """답변 통과율의 분모가 전체 사례가 아닌 답변 가능한 사례여야 함을 검사한다."""
     rows = ([row("answered", "answered")] * 7
             + [row("answered", "insufficient_evidence", passed=False)]
             + [row("insufficient_evidence", "insufficient_evidence")] * 8)
@@ -27,7 +28,7 @@ def test_answer_rate_uses_answerable_cases_only():
 
 
 def test_judged_gate_fails_when_a_parsing_check_fails(tmp_path):
-    """rag-quality-evaluation spec.md:62 passes a run only when every criterion holds."""
+    """검색/답변 지표가 좋아도 파싱 필수 항목이 실패하면 품질 게이트가 실패해야 함을 검사한다."""
     config = settings(tmp_path)
     cases = {"version": "synthetic-v1", "document_id": "a" * 64,
              "profile": {"project_code": "CN7N", "model_year": 2025, "transmission": "dct"},

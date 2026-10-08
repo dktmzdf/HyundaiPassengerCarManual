@@ -9,12 +9,13 @@ DOCUMENT = Document("a" * 64, "manual.pdf", "Synthetic manual", "CN7N", 2025, "k
 
 def block(identifier: str, page: int, text: str, scope: str = "dct",
           related: list[str] | None = None) -> Block:
+    """페이지·적용 범위·연결을 지정한 검토 완료 합성 블록을 만들어 청크 재현에 사용한다."""
     return Block(identifier, page, [0, 0, 10, 10], "table", text, "Synthetic", scope, True,
                  related_ids=related or [])
 
 
 def test_printed_labels_stay_attached_to_their_pdf_pages():
-    """manual-ingestion spec.md:30-36 keeps each printed label traceable to its PDF page."""
+    """인쇄 번호가 없는 페이지와 섞여도 인쇄 번호의 PDF 페이지 대응이 유지돼야 함을 검사한다."""
     table = block("tire", 13, "타이어 공기압 표", related=["note"])
     note = block("note", 16, "각주: 적재 시 기준")
     pages = [Page(13, None, "success", "raw", [table]),
@@ -24,7 +25,7 @@ def test_printed_labels_stay_attached_to_their_pdf_pages():
 
 
 def test_manual_only_link_is_left_out_without_failing_index():
-    """design.md:125 links a common header to DCT rows and leaves manual-only rows out."""
+    """공통 표 제목의 수동 전용 링크가 DCT 청크 생성 전체를 실패시키지 않아야 함을 검사한다."""
     header = block("header", 16, "오일 표 제목", "common", related=["dct", "manual"])
     dct = block("dct", 16, "DCT 오일 3.3 L")
     manual = block("manual", 16, "수동 오일 1.9 L", "manual")

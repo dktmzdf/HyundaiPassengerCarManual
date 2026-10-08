@@ -14,6 +14,12 @@ from .storage import GenerationStore, contained, read_json, write_json
 
 
 def metrics(rows: list[dict]) -> dict:
+    """사례별 검색 결과와 판정에서 비율·오류 수·유보 여부·품질 게이트를 계산한다.
+
+    검색 비율은 답변 가능한 사례를 분모로 쓴다. 현재 답변 비율은 전체 사례를 분모로
+    사용하며 파싱 결과는 게이트에 포함하지 않아 스펙 기준과 차이가 있다.
+    필요한 판정이 모두 없으면 통과시키지 않으며 사례가 없으면 비율은 None이다.
+    """
     answerable = [r for r in rows if r["expected_status"] == "answered"]
     retrieved = sum(r.get("retrieval_pass") is True for r in answerable)
     fields = {"pass", "scope_errors", "citation_errors", "numeric_unit_errors", "warning_errors"}
@@ -41,6 +47,12 @@ def metrics(rows: list[dict]) -> dict:
 
 
 def run_case(case: dict, settings: Settings, adapter: OpenAIAdapter) -> dict:
+    """평가 질문 하나를 검색·생성하고 기대 상태와 비교할 로컬 결과 행을 반환한다.
+
+    top-5에서 모든 필수 근거 묶음이 충족되는지 검사하지만 의미 판정은 None으로 남긴다.
+    RagError는 해당 사례의 오류로 기록하며 그 밖의 예외는 현재 호출자에게 전달한다.
+    반환 행에는 답변·발췌가 있으므로 공유 요약과 구분해 로컬에 보관한다.
+    """
     row = {"id": case["id"], "category": case["category"],
            "expected_status": case["expected_status"], "judgment": None}
     try:
@@ -60,6 +72,13 @@ def run_case(case: dict, settings: Settings, adapter: OpenAIAdapter) -> dict:
 
 def evaluate(settings: Settings, cases_path: Path, mode: str, adapter: OpenAIAdapter,
              report_path: Path | None = None) -> dict:
+    """local/live/judge 모드로 평가하고 공유 가능한 요약 사전을 반환한다.
+
+    local은 저장된 파싱 근거를 검사하고 live는 검색·생성을 추가해 상세/요약을 새 세대로
+    저장한다. judge는 사례 해시가 같은 판정 보고서의 지표만 계산한다.
+    live의 일부 미처리 예외는 현재 전체 평가를 중단할 수 있으며 judge의 게이트는
+    파싱 검사 결과를 반영하지 않는다. 실제 품질 판정과 API 실행 여부를 혼동하지 않는다.
+    """
     cases_data = read_json(cases_path)
     cases = cases_data["cases"]
     require(bool(cases) and len({c["id"] for c in cases}) == len(cases), "Invalid cases")
